@@ -1,6 +1,5 @@
 .cache/
-raygui/
-build/
+main
 
 # Executables
 *.exe
