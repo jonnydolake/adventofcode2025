@@ -15,7 +15,6 @@ int part_two(Data *data);
 
 int main(void)
 {
-
     Data data = {0};
 
     get_data(&data);
@@ -24,12 +23,7 @@ int main(void)
     int count = 0;
     int buffer;
 
-    while ((buffer = part_two(&data)) > 0)
-    {
-        count += buffer;
-    }
-
-
+    while ((buffer = part_two(&data)) > 0) count += buffer;
 
     print_data(data);
     printf("Result: %d\n", count);
@@ -44,8 +38,7 @@ int part_two(Data *data)
     {
         for (int j = 0; j < data->width; j++)
         {
-            if (check_data_two(data, j, i)) 
-            {
+            if (check_data_two(data, j, i)) {
                 count++;
             }
         }

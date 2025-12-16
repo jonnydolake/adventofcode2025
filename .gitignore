@@ -1,0 +1,15 @@
+.cache/
+raygui/
+build/
+
+# Executables
+*.exe
+*.o
+*.out
+*.app
+*.elf
+*.old
+
+# OS-generated files
+.DS_Store
+Thumbs.db
