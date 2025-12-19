@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -26,7 +27,7 @@ void get_data(Data *data);
 void print_data(Data *data);
 int get_start_index(Data *data);
 int get_tree1(const Data *data, uint8_t buffer[SIZE][SIZE], int x, int y);
-int get_tree2(const Data *data, uint8_t buffer[SIZE][SIZE], int x, int y);
+size_t get_tree2(const Data *data, size_t buffer[SIZE][SIZE], int x, int y);
 
 int main(void)
 {
@@ -42,27 +43,26 @@ int main(void)
     int start;
     if ((start = get_start_index(data)) == -1) return 1;
     printf("Start: %d\n", start);
-    uint8_t (*buffer)[SIZE] = calloc(SIZE, sizeof(*buffer));
+    size_t (*buffer)[SIZE] = calloc(SIZE, sizeof(*buffer));
 
-    int result = get_tree2(data, buffer, start, 0);
+    size_t result = get_tree2(data, buffer, start, 0);
 
-    printf("Result: %d\n", result);
+    printf("Result: %zu\n", result);
 
     return 0;
 }
 
-int get_tree2(const Data *data, uint8_t buffer[SIZE][SIZE], int x, int y)
+size_t get_tree2(const Data *data, size_t buffer[SIZE][SIZE], int x, int y)
 {
+    if (buffer[y][x] != 0) {
+        return buffer[y][x];
+    }
     if (y == data->height) {
         return 1;
     }
-    if (buffer[y][x] != 0) {
-        buffer[y][x]++;
-        return buffer[y][x] + buffer[y][x];
-    }
     if (data->matrix[y][x] == '^') {
-        return get_tree2(data, buffer, x -1, y + 1) + get_tree2(data, buffer, x+1, y+1);
-        buffer[y][x] += 2;
+        buffer[y][x] += get_tree2(data, buffer, x -1, y + 1) + get_tree2(data, buffer, x+1, y+1);
+        return buffer[y][x];
     }
     else {
         return get_tree2(data, buffer, x, y + 1);
