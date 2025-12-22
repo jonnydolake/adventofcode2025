@@ -1,9 +1,12 @@
 #include <math.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define SIZE 1024
+#define TARGET 1000
 
 typedef double f64;
 
@@ -14,21 +17,43 @@ typedef struct {
 } Coord;
 
 typedef struct {
-    size_t size;
     Coord coord[SIZE];
+    int size;
 } Data;
 
 typedef struct {
-    Coord coord1;
-    Coord coord2;
     f64 distance;
+    int i1;
+    int i2;
 } Distance;
+
+typedef struct {
+    uint32_t size;
+    Distance *array;
+} DistArray;
+
+
+typedef struct Circuit {
+    uint32_t size;
+    uint32_t array[SIZE];
+    bool removed;
+} Circuit;
+
+typedef struct {
+    uint32_t c_count;
+    uint32_t total;
+    uint32_t buffer[SIZE];
+    uint32_t circuit[SIZE];
+} CircuitGroups;
 
 //prototypes
 void get_data(Data *data);
 void print_data(const Data *data);
 f64 calc_distance(Coord c1, Coord c2);
 void print_coord(Coord coord);
+int compare_data_values(const void *a, const void *b);
+void part_one(const DistArray *dist, CircuitGroups *cg);
+int compare_results(const void *a, const void *b);
 
 int main(void)
 {
@@ -37,26 +62,111 @@ int main(void)
     get_data(&data);
     print_data(&data);
 
-    f64 temp = 1000000;
-    f64 temp_r = 1000000;
-    size_t index = 0;
-    for (size_t i = 1; i < data.size; i++)
+    DistArray dist = {0};
+    dist.array = calloc(SIZE * SIZE, sizeof(*dist.array));
+    if (!dist.array) {
+        perror("failed to alloc mem for Distance struct\n");
+        return 1;
+    }
+
+    for (int i = 0; i < data.size - 1; i++)
     {
-        if ((temp_r = calc_distance(data.coord[0], data.coord[i])) < temp) {
-            temp = temp_r;
-            index = i;
+        for (int j = i + 1; j < data.size; j++)
+        {
+            dist.array[dist.size].distance = calc_distance(data.coord[i], data.coord[j]);
+            dist.array[dist.size].i1 = i;
+            dist.array[dist.size].i2 = j;
+            dist.size++;
         }
     }
-    printf("test result: %lf\n", temp);
-    print_coord(data.coord[0]);
-    print_coord(data.coord[index]);
+
+    qsort(dist.array, dist.size, sizeof(dist.array[0]), compare_data_values);
+
+    for (size_t i = 0; i < dist.size; i++)
+    {
+        printf("%d,%d\n", dist.array[i].i1, dist.array[i].i2);
+    }
+    printf("Size: %d\n", dist.size);
+
+    CircuitGroups *cg = calloc(1, sizeof(*cg));
+
+    part_one(&dist, cg);
+    //
+    qsort(cg->circuit, TARGET+1, sizeof(cg->circuit[0]), compare_results);
+
+    for (int i = 0; i < TARGET+1; i++)
+    {
+        printf("%d\n", cg->circuit[i]);
+    }
 
     return 0;
 }
 
-void part_one(const Data *data)
+void part_one(const DistArray *dist, CircuitGroups *cg)
 {
+    cg->c_count = 1;
+    cg->buffer[dist->array[0].i1] = cg->c_count;
+    cg->buffer[dist->array[0].i2] = cg->c_count;
+    // cg->total++;
+    for (uint32_t i = 1; i < TARGET+1; i++)
+    {
+        uint32_t i1 = dist->array[i].i1;
+        uint32_t i2 = dist->array[i].i2;
+        uint32_t c1 = cg->buffer[i1];
+        uint32_t c2 = cg->buffer[i2];
+        if (c1 && c2) {
+            if (c1 == c2) continue;
+            for (uint32_t j = 0; j < dist->size; j++)
+            {
+                if (cg->buffer[j] == c2) {
+                    cg->buffer[j] = c1;
+                }
+            }
+        }
+        else if (c1) {
+            cg->buffer[i2] = c1;
+        }
+        else if (c2) {
+            cg->buffer[i1] = c2;
+        }
+        else {
+            cg->c_count++;
+            cg->buffer[i1] = cg->c_count;
+            cg->buffer[i2] = cg->c_count;
+        }
+    }
 
+    for (uint32_t i = 0; i < TARGET+1; i++)
+    {
+        if (cg->buffer[i]) {
+            // printf("%d\n", cg->buffer[i]);
+            cg->circuit[cg->buffer[i]]++;
+        }
+    }
+    // for (size_t i = 0; i <= cg->c_count; i++)
+    // {
+    //         printf("%d\n", cg->circuit[i]);
+    // }
+}
+
+int compare_results(const void *a, const void *b)
+{
+    uint32_t cg_a = *((const uint32_t*)a);
+    uint32_t cg_b = *((const uint32_t*)b);
+
+    if (cg_a < cg_b) return -1;
+    if (cg_a > cg_b) return 1;
+    return 0;
+}
+
+int compare_data_values(const void *a, const void *b)
+{
+    Distance dist_a = *((const Distance*)a);
+    Distance dist_b = *((const Distance*)b);
+
+    if (dist_a.distance < dist_b.distance) return -1;
+    if (dist_a.distance > dist_b.distance) return 1;
+    return 0;
 }
 
 f64 calc_distance(Coord c1, Coord c2)
@@ -86,11 +196,11 @@ void get_data(Data *data)
 
 void print_data(const Data *data)
 {
-    for (size_t i = 0; i < data->size; i++)
+    for (int i = 0; i < data->size; i++)
     {
         printf("%d %d %d\n", data->coord[i].x, data->coord[i].y, data->coord[i].z);
     }
-    printf("Size: %zu\n", data->size);
+    printf("Size: %d\n", data->size);
 }
 
 void print_coord(Coord coord)
