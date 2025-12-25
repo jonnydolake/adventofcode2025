@@ -4,11 +4,17 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define SIZE 1024
 #define TARGET 1000
 
 typedef double f64;
+
+typedef struct {
+    int32_t x;
+    int32_t y;
+} i32Vec2;
 
 typedef struct {
     int x;
@@ -46,6 +52,18 @@ typedef struct {
     uint32_t circuit[SIZE];
 } CircuitGroups;
 
+typedef struct {
+    int32_t size;
+    int32_t data[SIZE];
+    bool deleted;
+} ResultData;
+
+typedef struct {
+    int32_t b_count;
+    ResultData rd[SIZE];
+    int32_t buffer[SIZE];
+} Circuit2;
+
 //prototypes
 void get_data(Data *data);
 void print_data(const Data *data);
@@ -54,13 +72,14 @@ void print_coord(Coord coord);
 int compare_data_values(const void *a, const void *b);
 void part_one(const DistArray *dist, CircuitGroups *cg);
 int compare_results(const void *a, const void *b);
+i32Vec2 part_two(const DistArray *dist, Circuit2 *circ, uint32_t data_size);
 
 int main(void)
 {
-    Data data = {0};
+    Data *data = calloc(1, sizeof(*data));;
 
-    get_data(&data);
-    print_data(&data);
+    get_data(data);
+    print_data(data);
 
     DistArray dist = {0};
     dist.array = calloc(SIZE * SIZE, sizeof(*dist.array));
@@ -69,11 +88,11 @@ int main(void)
         return 1;
     }
 
-    for (int i = 0; i < data.size - 1; i++)
+    for (int i = 0; i < data->size - 1; i++)
     {
-        for (int j = i + 1; j < data.size; j++)
+        for (int j = i + 1; j < data->size; j++)
         {
-            dist.array[dist.size].distance = calc_distance(data.coord[i], data.coord[j]);
+            dist.array[dist.size].distance = calc_distance(data->coord[i], data->coord[j]);
             dist.array[dist.size].i1 = i;
             dist.array[dist.size].i2 = j;
             dist.size++;
@@ -88,18 +107,81 @@ int main(void)
     }
     printf("Size: %d\n", dist.size);
 
-    CircuitGroups *cg = calloc(1, sizeof(*cg));
+    // CircuitGroups *cg = calloc(1, sizeof(*cg));
 
-    part_one(&dist, cg);
-    //
-    qsort(cg->circuit, TARGET+1, sizeof(cg->circuit[0]), compare_results);
-
-    for (int i = 0; i < TARGET+1; i++)
-    {
-        printf("%d\n", cg->circuit[i]);
+    Circuit2 *circ = calloc(1, sizeof(*circ));
+    if (!circ) {
+        perror("failed to alloc mem for circ\n");
+        return 1;
     }
 
+    memset(circ->buffer, -1, sizeof(circ->buffer));
+
+    // part_one(&dist, cg);
+    // //
+    // qsort(cg->circuit, TARGET+1, sizeof(cg->circuit[0]), compare_results);
+    //
+    // for (int i = 0; i < TARGET+1; i++)
+    // {
+    //     printf("%d\n", cg->circuit[i]);
+    // }
+
+    i32Vec2 result = part_two(&dist, circ, data->size);
+    printf("Size: %d\n", circ->b_count);
+    printf("C1: %d\nC2: %d\n", result.x, result.y);
+    printf("Result: %llu\n", (uint64_t)data->coord[result.x].x * (uint64_t)data->coord[result.y].x);
+
     return 0;
+}
+
+i32Vec2 part_two(const DistArray *dist, Circuit2 *circ, uint32_t data_size)
+{
+    circ->buffer[dist->array[0].i1] = circ->b_count;
+    circ->buffer[dist->array[0].i2] = circ->b_count;
+    circ->rd[circ->b_count].data[circ->rd[circ->b_count].size++] = dist->array[0].i1;
+    circ->rd[circ->b_count].data[circ->rd[circ->b_count].size++] = dist->array[0].i2;
+    for (uint32_t i = 1; i < dist->size; i++)
+    {
+        int32_t i1 = dist->array[i].i1;
+        int32_t i2 = dist->array[i].i2;
+        int32_t c1 = circ->buffer[i1];
+        int32_t c2 = circ->buffer[i2];
+        printf("indexes: %d,%d\n", c1, c2);
+        if (c1 >= 0 && c2 >= 0) {
+            if (c1 == c2) continue;
+            for (uint32_t j = 0; j < data_size; j++)
+            {
+                if (circ->buffer[j] == c2) {
+                    circ->buffer[j] = c1;
+                    circ->rd[c1].data[circ->rd[c1].size++] = j;
+                }
+            }
+            circ->rd[c2].deleted = true;
+            if (circ->rd[c1].size == data_size) {
+                return (i32Vec2) {i1, i2}; //todo: return values
+            }
+        }
+        else if (c1 >= 0) {
+            circ->buffer[i2] = c1;
+            circ->rd[c1].data[circ->rd[c1].size++] = i2;
+        }
+        else if (c2 >= 0) {
+            circ->buffer[i1] = c2;
+            circ->rd[c2].data[circ->rd[c2].size++] = i1;
+        }
+        else {
+            circ->b_count++;
+            circ->buffer[i1] = circ->b_count;
+            circ->buffer[i2] = circ->b_count;
+            circ->rd[circ->b_count].data[circ->rd[circ->b_count].size++] = i1;
+            circ->rd[circ->b_count].data[circ->rd[circ->b_count].size++] = i2;
+        }
+
+        if (circ->rd[c1].size == data_size || circ->rd[c2].size == data_size) {
+            return (i32Vec2) {i1, i2}; //todo: return values
+        }
+    }
+    return (i32Vec2) {-1, -1}; //todo: return values
 }
 
 void part_one(const DistArray *dist, CircuitGroups *cg)
