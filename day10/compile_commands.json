@@ -1,0 +1,7 @@
+[
+  {
+    "directory": "/Users/joao/Documentos/C_Tests/advent_of_code_2025/day10",
+    "command": "clang -Wall -Wextra day10.c -o main",
+    "file": "day10.c"
+  }
+]
